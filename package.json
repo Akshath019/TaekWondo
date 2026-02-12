@@ -1,0 +1,18 @@
+{
+  "name": "tkd-scoring-wifi",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:frontend": "bun --cwd apps/frontend dev",
+    "dev:backend": "bun --cwd apps/backend dev",
+    "dev": "bun run dev:backend & bun run dev:frontend"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  }
+}
