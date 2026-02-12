@@ -7,11 +7,12 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:frontend": "bun --cwd apps/frontend dev",
     "dev:backend": "bun --cwd apps/backend dev",
-    "dev": "bun run dev:backend & bun run dev:frontend"
+    "dev:frontend": "bun --cwd apps/frontend dev",
+    "dev": "concurrently \"bun run dev:backend\" \"bun run dev:frontend\""
   },
   "devDependencies": {
-    "bun-types": "latest"
+    "bun-types": "latest",
+    "concurrently": "^9.2.1"
   }
 }

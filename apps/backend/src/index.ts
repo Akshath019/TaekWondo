@@ -1,8 +1,18 @@
 import { Elysia, t } from "elysia";
 import { redis } from "./lib/redis";
+import { cors } from "@elysiajs/cors";
 import { roomRoutes } from "./routes/room";
 
 const app = new Elysia()
+
+  .use(
+    cors({
+      origin: ["http://localhost:3000"], // ← your frontend origin
+      credentials: true, // if you use cookies/auth later
+      methods: ["GET", "POST", "PATCH", "OPTIONS"],
+      allowedHeaders: ["Content-Type"],
+    }),
+  )
 
   // ── All API routes ─────────────────────────────────────
   .use(roomRoutes)

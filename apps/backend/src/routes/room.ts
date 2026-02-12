@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { nanoid } from "nanoid";
 import bcrypt from "bcrypt";
 import { redis } from "../lib/redis";
-import type { RoomData } from "@take-wondo/shared"; // ← type-only import
+import type { RoomData } from "@take-wondo/shared";
 
 export const roomRoutes = new Elysia({ prefix: "/api/rooms" })
 
@@ -23,9 +23,9 @@ export const roomRoutes = new Elysia({ prefix: "/api/rooms" })
       // Generate unique 6-char room code
       let roomCode = nanoid(6).toUpperCase();
 
-      // Collision check (rare, but safe)
+      // Collision check (very rare)
       let attempts = 0;
-      let existingRoom = null;
+      let existingRoom: unknown = null;
 
       while (attempts < 5) {
         existingRoom = await redis.get(`room:${roomCode}`);
@@ -46,14 +46,42 @@ export const roomRoutes = new Elysia({ prefix: "/api/rooms" })
       const saltRounds = 10;
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
-      // Initial room data
-      const roomData = {
+      // Full initial room data with defaults
+      const roomData: RoomData = {
         passwordHash,
         createdAt: Date.now(),
-        // Later: config, match, referees, signals, etc.
+
+        config: {
+          votingWindowMs: 800,
+          majorityPercent: 0.6,
+          pointValues: {
+            punch: 1,
+            body: 1,
+            bodyTurning: 2,
+            head: 3,
+            headTurning: 4,
+          },
+          rounds: 3,
+          roundDuration: 120,
+          breakDuration: 60,
+          goldenPoint: false,
+          maxPointGap: 0,
+        },
+
+        match: {
+          phase: "ready" as const,
+          currentRound: 1,
+          roundTimeLeft: 120,
+          breakTimeLeft: 60,
+          isPaused: true,
+          red: { name: "Red", score: 0 },
+          blue: { name: "Blue", score: 0 },
+        },
+
+        referees: [],
       };
 
-      // Save with 48h expiry
+      // Save to Redis with 48h expiry
       await redis.set(`room:${roomCode}`, roomData, { ex: 172800 });
 
       console.log(`Room created: ${roomCode}`);
@@ -67,6 +95,29 @@ export const roomRoutes = new Elysia({ prefix: "/api/rooms" })
     {
       body: t.Object({
         password: t.String(),
+      }),
+    },
+  )
+  // ── GET ROOM STATE ─────────────────────────────────────
+  .get(
+    "/:code",
+    async ({ params, set }) => {
+      const { code } = params;
+      const roomKey = `room:${code.toUpperCase()}`;
+      const room = await redis.get<RoomData>(roomKey);
+
+      if (!room) {
+        set.status = 404;
+        return { success: false, error: "Room not found or expired" };
+      }
+
+      // Return everything except passwordHash
+      const { passwordHash, ...safeRoom } = room;
+      return safeRoom;
+    },
+    {
+      params: t.Object({
+        code: t.String(),
       }),
     },
   )
@@ -84,14 +135,14 @@ export const roomRoutes = new Elysia({ prefix: "/api/rooms" })
       }
 
       const roomKey = `room:${code.toUpperCase()}`;
-      const room = await redis.get<RoomData>(roomKey); // ← generic type
+      const room = await redis.get<RoomData>(roomKey);
 
       if (!room) {
         set.status = 404;
         return { success: false, error: "Room not found or expired" };
       }
 
-      // TypeScript now knows room has passwordHash
+      // Verify password
       const isValid = await bcrypt.compare(password, room.passwordHash);
 
       if (!isValid) {
@@ -99,10 +150,14 @@ export const roomRoutes = new Elysia({ prefix: "/api/rooms" })
         return { success: false, error: "Incorrect password" };
       }
 
+      // Return useful data for frontend
       return {
         success: true,
         message: "Joined successfully",
         roomCode: code.toUpperCase(),
+        config: room.config,
+        match: room.match,
+        referees: room.referees,
       };
     },
     {
@@ -114,3 +169,5 @@ export const roomRoutes = new Elysia({ prefix: "/api/rooms" })
       }),
     },
   );
+  
+  
