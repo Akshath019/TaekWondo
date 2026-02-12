@@ -9,10 +9,14 @@
   },
   "dependencies": {
     "@upstash/redis": "^1.36.2",
+    "bcrypt": "^6.0.0",
     "elysia": "latest",
-    "ioredis": "latest"
+    "ioredis": "latest",
+    "nanoid": "^5.1.6",
+    "@take-wondo/shared": "workspace:*"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/bun": "latest"
   }
 }
